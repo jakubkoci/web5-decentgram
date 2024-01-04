@@ -4,7 +4,7 @@ import { stat } from 'fs'
 import { useEffect, useState } from 'react'
 
 export default function Home() {
-  console.log('render called')
+  console.log('render Home')
   const [web5, setWeb5] = useState<Web5 | null>(null)
   const [myDid, setMyDid] = useState<string>('')
 
@@ -108,20 +108,65 @@ export default function Home() {
   }
 
   return (
-    <main>
-      <h1>Decentgram</h1>
-      <button className="btn btn-primary" onClick={upload}>
-        Upload
-      </button>
-      <button className="btn btn-primary" onClick={share}>
-        Share
-      </button>
-      <h2>List of images</h2>
+    <main className="container mx-auto space-y-4">
+      <h1 className="mb-8 text-4xl">Decentgram</h1>
+      <section>
+        <h2 className="mb-2 text-2xl">Upload</h2>
+        <div className="space-x-2">
+          <input
+            type="text"
+            placeholder="Select image..."
+            className="input input-bordered w-full max-w-xs"
+          />
+          <button className="btn btn-primary" onClick={upload}>
+            Upload
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-2xl">Images</h2>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Content</th>
+              <th>Target</th>
+              <th>Author</th>
+              <th>Shared</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="font-mono">bafyreih6wfb...h2hglg3h33ba</td>
+              <td>Thrid Message for Bob</td>
+              <td>did:ion:EiAVV...XdyeQ</td>
+              <td>did:ion:EiAVV...XdyeQ</td>
+              <td>did:ion:EiAZI...h9PVA</td>
+              <td>
+                <button className="btn btn-primary" onClick={share}>
+                  Share
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td className="font-mono">bafyreidhvsr...i3ssqilld7ti</td>
+              <td>Second Message for Bob</td>
+              <td>did:ion:EiAVV...XdyeQ</td>
+              <td>did:ion:EiAVV...XdyeQ</td>
+              <td>no</td>
+              <td>
+                <button className="btn btn-primary" onClick={share}>
+                  Share
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
       <button className="btn btn-primary" onClick={show}>
         Show
-      </button>
-      <button className="btn btn-primary" onClick={showSharedWithMe}>
-        Show Shared With Me
       </button>
     </main>
   )
