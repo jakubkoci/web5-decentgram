@@ -116,7 +116,7 @@ export default function Home() {
     if (!recipientDid) throw new Error('Record ID must not be empty.')
 
     const recordsWiteResponse = await web5.dwn.records.createFrom({
-      data: await recordResult.record.data.text(),
+      data: await recordResult.record.data.blob(),
       author: myDid,
       record: recordResult.record,
       message: {
