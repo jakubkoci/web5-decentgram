@@ -54,17 +54,10 @@ export default function Home() {
   const loadAll = async (web5: Web5 | null) => {
     console.log('load records')
     if (!web5) throw new Error('Web5 client has not been initialized.')
-    const queryResult = await web5.dwn.records.query({
-      // from: myDid,
-      message: {
-        filter: {
-          dataFormat: 'text/plain',
-        },
-      },
-    })
-    if (!queryResult.records) throw new Error('No records found')
+    const myRecords = await getMyRecords(web5)
+    const sharedRecords = await getSharedRecords(web5)
     const records = await Promise.all(
-      queryResult.records.map(async (record: Record) => {
+      myRecords.concat(sharedRecords).map(async (record: Record) => {
         const content = await record.data.text()
         logRecord(record, content)
         return { record, content }
@@ -73,24 +66,39 @@ export default function Home() {
     setRecords(records)
   }
 
-  const showSharedWithMe = async () => {
-    console.log('show records')
-    if (!web5) throw new Error('Web5 client has not been initialized.')
-    const contactDid = '<insert contact did>'
+  const getMyRecords = async (web5: Web5) => {
     const queryResult = await web5.dwn.records.query({
-      from: contactDid,
       message: {
         filter: {
           dataFormat: 'text/plain',
         },
       },
     })
-    if (!queryResult.records) throw new Error('No records found')
+    if (!queryResult.records) {
+      console.log('No records find', queryResult)
+    }
+    return queryResult.records || []
   }
 
-  const share = async () => {
-    console.log('share')
-    const recordId = '<insert record id>'
+  const getSharedRecords = async (web5: Web5) => {
+    let records: Record[] = []
+    const contactDids: string[] = []
+    for (const did of contactDids) {
+      const queryResult = await web5.dwn.records.query({
+        from: did,
+        message: {
+          filter: {
+            dataFormat: 'text/plain',
+          },
+        },
+      })
+      records = records.concat(queryResult.records || [])
+    }
+    return records
+  }
+
+  const share = async (web5: Web5 | null, recordId: string) => {
+    console.log('share', { recordId })
     if (!web5) throw new Error('Web5 client has not been initialized.')
 
     const recordResult = await web5.dwn.records.read({
@@ -101,22 +109,25 @@ export default function Home() {
         },
       },
     })
+    console.log('record read result', recordResult)
 
-    console.log('recordResult', recordResult)
-    const recipientDid = '<insert recipient did>'
+    const recipientDid = prompt('Enter recipient DID')
+    if (!recipientDid) throw new Error('Record ID must not be empty.')
 
     const recordsWiteResponse = await web5.dwn.records.createFrom({
-      author: myDid,
       data: await recordResult.record.data.text(),
+      author: myDid,
+      record: recordResult.record,
       message: {
         dataFormat: 'text/plain',
         recipient: recipientDid,
       },
-      record: recordResult.record,
     })
-    console.log('recordsWiteResponse', recordsWiteResponse)
+    console.log('record createFrom response', recordsWiteResponse)
     const { record } = recordsWiteResponse
-    if (!record) throw new Error('no record 102')
+    if (!record) {
+      throw new Error('Record has not been created from other record')
+    }
     console.log('record created', record.id)
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
@@ -125,6 +136,10 @@ export default function Home() {
   return (
     <main className="container mx-auto space-y-4">
       <h1 className="mb-8 text-4xl">Decentgram</h1>
+      <section>
+        <h2 className="mb-2 text-2xl">My DID</h2>
+        <div>{myDid}</div>
+      </section>
       <section>
         <h2 className="mb-2 text-2xl">Upload</h2>
         <div className="space-x-2">
@@ -154,7 +169,7 @@ export default function Home() {
               <th>Content</th>
               <th>Target</th>
               <th>Author</th>
-              <th>Shared</th>
+              <th>Recipient</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -172,8 +187,10 @@ export default function Home() {
                   <td>
                     <button
                       className="btn btn-primary"
-                      onClick={share}
-                      disabled
+                      onClick={() => share(web5, record.id)}
+                      disabled={
+                        !!(record.recipient && record.recipient === myDid)
+                      }
                     >
                       Share
                     </button>
