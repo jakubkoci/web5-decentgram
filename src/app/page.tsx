@@ -1,12 +1,18 @@
 'use client'
+import { truncate } from '@/utils'
 import { Record, Web5 } from '@web5/api'
-import { stat } from 'fs'
 import { useEffect, useState } from 'react'
+
+interface RecordWithContent {
+  record: Record
+  content: string
+}
 
 export default function Home() {
   console.log('render Home')
   const [web5, setWeb5] = useState<Web5 | null>(null)
   const [myDid, setMyDid] = useState<string>('')
+  const [records, setRecords] = useState<RecordWithContent[]>([])
 
   useEffect(() => {
     const initWeb5 = async () => {
@@ -19,8 +25,9 @@ export default function Home() {
         console.log('web5 client connecet connected')
         console.log('did', did)
       }
+      return web5
     }
-    initWeb5()
+    initWeb5().then((web5) => loadAll(web5))
   }, [])
 
   const upload = async () => {
@@ -42,8 +49,8 @@ export default function Home() {
     console.log('uploaded', status)
   }
 
-  const show = async () => {
-    console.log('show records')
+  const loadAll = async (web5: Web5 | null) => {
+    console.log('load records')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const queryResult = await web5.dwn.records.query({
       // from: myDid,
@@ -54,7 +61,14 @@ export default function Home() {
       },
     })
     if (!queryResult.records) throw new Error('No records found')
-    printRecords(queryResult.records)
+    const records = await Promise.all(
+      queryResult.records.map(async (record: Record) => {
+        const content = await record.data.text()
+        logRecord(record, content)
+        return { record, content }
+      }),
+    )
+    setRecords(records)
   }
 
   const showSharedWithMe = async () => {
@@ -70,7 +84,6 @@ export default function Home() {
       },
     })
     if (!queryResult.records) throw new Error('No records found')
-    printRecords(queryResult.records)
   }
 
   const share = async () => {
@@ -138,54 +151,42 @@ export default function Home() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td className="font-mono">bafyreih6wfb...h2hglg3h33ba</td>
-              <td>Thrid Message for Bob</td>
-              <td>did:ion:EiAVV...XdyeQ</td>
-              <td>did:ion:EiAVV...XdyeQ</td>
-              <td>did:ion:EiAZI...h9PVA</td>
-              <td>
-                <button className="btn btn-primary" onClick={share}>
-                  Share
-                </button>
-              </td>
-            </tr>
-            <tr>
-              <td className="font-mono">bafyreidhvsr...i3ssqilld7ti</td>
-              <td>Second Message for Bob</td>
-              <td>did:ion:EiAVV...XdyeQ</td>
-              <td>did:ion:EiAVV...XdyeQ</td>
-              <td>no</td>
-              <td>
-                <button className="btn btn-primary" onClick={share}>
-                  Share
-                </button>
-              </td>
-            </tr>
+            {records.map(({ record, content }) => {
+              return (
+                <tr key={record.id}>
+                  <td className="font-mono">{truncate(record.id, 12)}</td>
+                  <td>{content}</td>
+                  <td>{truncate(record.target, 10)}</td>
+                  <td>{truncate(record.author, 10)}</td>
+                  <td>
+                    {record.recipient ? truncate(record.recipient, 10) : 'no'}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-primary"
+                      onClick={share}
+                      disabled
+                    >
+                      Share
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>
-      <button className="btn btn-primary" onClick={show}>
-        Show
-      </button>
     </main>
   )
 }
 
-const printRecords = async (records: Record[]) => {
-  console.log(`records count`, records.length)
-  console.log(`records:\n`)
-
-  for (const record of records) {
-    const { id, author, target, recipient } = record
-    const content = await record.data.text()
-    console.log({
-      id,
-      author,
-      target,
-      recipient,
-      content,
-    })
-    console.log('=========================\n')
-  }
+const logRecord = (record: Record, content: string) => {
+  const { id, author, target, recipient } = record
+  console.log({
+    id,
+    author,
+    target,
+    recipient,
+    content,
+  })
 }
