@@ -2,10 +2,11 @@
 import { truncate } from '@/utils'
 import { Record, Web5 } from '@web5/api'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
 interface RecordWithContent {
   record: Record
-  content: string
+  content: Blob
 }
 
 export default function Home() {
@@ -13,7 +14,7 @@ export default function Home() {
   const [web5, setWeb5] = useState<Web5 | null>(null)
   const [myDid, setMyDid] = useState<string>('')
   const [records, setRecords] = useState<RecordWithContent[]>([])
-  const [uploadContent, setUploadContent] = useState('')
+  const [uploadContent, setUploadContent] = useState<File | null>(null)
 
   useEffect(() => {
     const initWeb5 = async () => {
@@ -31,13 +32,13 @@ export default function Home() {
     initWeb5().then(loadAll)
   }, [])
 
-  const upload = async (web5: Web5 | null, content: string) => {
+  const upload = async (web5: Web5 | null, content: File) => {
     console.log('upload')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const { record } = await web5.dwn.records.create({
-      data: content,
+      data: new Blob([content], { type: "image/jpeg" }),
       message: {
-        dataFormat: 'text/plain',
+        dataFormat: 'image/jpeg',
         // recipient: bobDid,
       },
     })
@@ -47,7 +48,7 @@ export default function Home() {
     console.log('created')
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
-    setUploadContent('')
+    setUploadContent(null)
     loadAll(web5)
   }
 
@@ -58,8 +59,8 @@ export default function Home() {
     const sharedRecords = await getSharedRecords(web5)
     const records = await Promise.all(
       myRecords.concat(sharedRecords).map(async (record: Record) => {
-        const content = await record.data.text()
-        logRecord(record, content)
+        const content = await record.data.blob()
+        logRecord(record, await content.text())
         return { record, content }
       }),
     )
@@ -70,7 +71,7 @@ export default function Home() {
     const queryResult = await web5.dwn.records.query({
       message: {
         filter: {
-          dataFormat: 'text/plain',
+          dataFormat: 'image/jpeg',
         },
       },
     })
@@ -88,7 +89,7 @@ export default function Home() {
         from: did,
         message: {
           filter: {
-            dataFormat: 'text/plain',
+            dataFormat: 'image/jpeg',
           },
         },
       })
@@ -104,7 +105,7 @@ export default function Home() {
     const recordResult = await web5.dwn.records.read({
       message: {
         filter: {
-          dataFormat: 'text/plain',
+          dataFormat: 'image/jpeg',
           recordId,
         },
       },
@@ -119,7 +120,7 @@ export default function Home() {
       author: myDid,
       record: recordResult.record,
       message: {
-        dataFormat: 'text/plain',
+        dataFormat: 'image/jpeg',
         recipient: recipientDid,
       },
     })
@@ -144,16 +145,15 @@ export default function Home() {
         <h2 className="mb-2 text-2xl">Upload</h2>
         <div className="space-x-2">
           <input
-            type="text"
+            type="file"
             placeholder="Select image..."
-            className="input input-bordered w-full max-w-xs"
-            value={uploadContent}
-            onChange={(e) => setUploadContent(e.target.value)}
+            className="file-input input-bordered w-full max-w-xs"
+            onChange={(e) => setUploadContent(e.currentTarget.files![0])}
           />
           <button
             className="btn btn-primary"
             disabled={!uploadContent}
-            onClick={() => upload(web5, uploadContent)}
+            onClick={() => upload(web5, uploadContent!)}
           >
             Upload
           </button>
@@ -178,7 +178,7 @@ export default function Home() {
               return (
                 <tr key={record.id}>
                   <td className="font-mono">{truncate(record.id, 12)}</td>
-                  <td>{content}</td>
+                  <td><Image src={URL.createObjectURL(content)} alt="post" width={100} height={100} /></td>
                   <td>{truncate(record.target, 10)}</td>
                   <td>{truncate(record.author, 10)}</td>
                   <td>
