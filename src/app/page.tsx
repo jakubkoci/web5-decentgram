@@ -13,6 +13,7 @@ export default function Home() {
   const [web5, setWeb5] = useState<Web5 | null>(null)
   const [myDid, setMyDid] = useState<string>('')
   const [records, setRecords] = useState<RecordWithContent[]>([])
+  const [uploadContent, setUploadContent] = useState('')
 
   useEffect(() => {
     const initWeb5 = async () => {
@@ -27,11 +28,10 @@ export default function Home() {
       }
       return web5
     }
-    initWeb5().then((web5) => loadAll(web5))
+    initWeb5().then(loadAll)
   }, [])
 
-  const upload = async () => {
-    const content = 'Fourth Message for Bob'
+  const upload = async (web5: Web5 | null, content: string) => {
     console.log('upload')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const { record } = await web5.dwn.records.create({
@@ -47,6 +47,8 @@ export default function Home() {
     console.log('created')
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
+    setUploadContent('')
+    loadAll(web5)
   }
 
   const loadAll = async (web5: Web5 | null) => {
@@ -130,8 +132,14 @@ export default function Home() {
             type="text"
             placeholder="Select image..."
             className="input input-bordered w-full max-w-xs"
+            value={uploadContent}
+            onChange={(e) => setUploadContent(e.target.value)}
           />
-          <button className="btn btn-primary" onClick={upload}>
+          <button
+            className="btn btn-primary"
+            disabled={!uploadContent}
+            onClick={() => upload(web5, uploadContent)}
+          >
             Upload
           </button>
         </div>
