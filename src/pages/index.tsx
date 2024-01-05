@@ -1,8 +1,8 @@
 'use client'
-import { truncate } from '@/utils'
-import { Record, Web5 } from '@web5/api'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { Record, Web5 } from '@web5/api'
+import { truncate } from '@/utils'
 
 interface RecordWithContent {
   record: Record
@@ -36,7 +36,7 @@ export default function Home() {
     console.log('upload')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const { record } = await web5.dwn.records.create({
-      data: new Blob([content], { type: "image/jpeg" }),
+      data: new Blob([content], { type: 'image/jpeg' }),
       message: {
         dataFormat: 'image/jpeg',
         // recipient: bobDid,
@@ -178,7 +178,14 @@ export default function Home() {
               return (
                 <tr key={record.id}>
                   <td className="font-mono">{truncate(record.id, 12)}</td>
-                  <td><Image src={URL.createObjectURL(content)} alt="post" width={100} height={100} /></td>
+                  <td>
+                    <Image
+                      src={URL.createObjectURL(content)}
+                      alt="post"
+                      width={100}
+                      height={100}
+                    />
+                  </td>
                   <td>{truncate(record.target, 10)}</td>
                   <td>{truncate(record.author, 10)}</td>
                   <td>
