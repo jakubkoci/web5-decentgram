@@ -139,7 +139,22 @@ export default function Home() {
       <h1 className="mb-8 text-4xl">Decentgram</h1>
       <section>
         <h2 className="mb-2 text-2xl">My DID</h2>
-        <div>{myDid}</div>
+        <div className="space-x-2">
+          <input
+            className="input input-bordered w-full max-w-xs"
+            type="text"
+            value={myDid}
+            readOnly
+          />
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              navigator.clipboard.writeText(myDid)
+            }}
+          >
+            Copy
+          </button>
+        </div>
       </section>
       <section>
         <h2 className="mb-2 text-2xl">Upload</h2>
