@@ -13,3 +13,8 @@ export const truncate = (str: string, n: number) => {
   // Return the truncated string
   return `${startPart}...${endPart}`
 }
+
+export const truncateDid = (did: string) => {
+  const [, didMethod, didSuffix] = did.split(':')
+  return didSuffix
+}

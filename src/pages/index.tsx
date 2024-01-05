@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Record, Web5 } from '@web5/api'
-import { truncate } from '@/utils'
+import { truncate, truncateDid } from '@/utils'
 
 interface RecordWithContent {
   record: Record
@@ -13,6 +13,7 @@ export default function Home() {
   console.log('render Home')
   const [web5, setWeb5] = useState<Web5 | null>(null)
   const [myDid, setMyDid] = useState<string>('')
+  const [theirDid, setTheirDid] = useState<string>('')
   const [records, setRecords] = useState<RecordWithContent[]>([])
   const [uploadContent, setUploadContent] = useState<File | null>(null)
 
@@ -29,7 +30,7 @@ export default function Home() {
       }
       return web5
     }
-    initWeb5().then(loadAll)
+    initWeb5().then((web5) => loadAll(web5, ''))
   }, [])
 
   const upload = async (web5: Web5 | null, content: File) => {
@@ -39,7 +40,7 @@ export default function Home() {
       data: new Blob([content], { type: 'image/jpeg' }),
       message: {
         dataFormat: 'image/jpeg',
-        // recipient: bobDid,
+        // recipient: theirDid,
       },
     })
 
@@ -49,14 +50,14 @@ export default function Home() {
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
     setUploadContent(null)
-    loadAll(web5)
+    loadAll(web5, '')
   }
 
-  const loadAll = async (web5: Web5 | null) => {
+  const loadAll = async (web5: Web5 | null, theirDid: string) => {
     console.log('load records')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const myRecords = await getMyRecords(web5)
-    const sharedRecords = await getSharedRecords(web5)
+    const sharedRecords = await getSharedRecords(web5, theirDid)
     const records = await Promise.all(
       myRecords.concat(sharedRecords).map(async (record: Record) => {
         const content = await record.data.blob()
@@ -81,9 +82,11 @@ export default function Home() {
     return queryResult.records || []
   }
 
-  const getSharedRecords = async (web5: Web5) => {
+  const getSharedRecords = async (web5: Web5, theirDid: string) => {
     let records: Record[] = []
-    const contactDids: string[] = []
+    const contactDids: string[] = theirDid ? [theirDid] : []
+    console.log('theirDid', theirDid)
+    console.log('contactDids', contactDids)
     for (const did of contactDids) {
       const queryResult = await web5.dwn.records.query({
         from: did,
@@ -134,8 +137,19 @@ export default function Home() {
     console.log('uploaded', status)
   }
 
+  const remove = async (web5: Web5 | null, recordId: string) => {
+    if (!web5) throw new Error('Web5 client has not been initialized.')
+    console.log('remove')
+    const removeResult = await web5.dwn.records.delete({
+      message: {
+        recordId: recordId,
+      },
+    })
+    console.log('removeResult', removeResult)
+  }
+
   return (
-    <main className="container mx-auto space-y-4">
+    <main className="container mx-auto space-y-10 py-10">
       <h1 className="mb-8 text-4xl">Decentgram</h1>
       <section>
         <h2 className="mb-2 text-2xl">My DID</h2>
@@ -156,6 +170,32 @@ export default function Home() {
           </button>
         </div>
       </section>
+
+      <section>
+        <h2 className="mb-2 text-2xl">Their DID</h2>
+        <div className="space-x-2">
+          <input
+            className="input input-bordered w-full max-w-xs"
+            type="text"
+            value={theirDid}
+            onChange={(e) => {
+              setTheirDid(e.target.value)
+              loadAll(web5, e.target.value)
+            }}
+          />
+          <button
+            className="btn btn-primary"
+            onClick={async () => {
+              const text = await navigator.clipboard.readText()
+              setTheirDid(text)
+              loadAll(web5, text)
+            }}
+          >
+            Paste
+          </button>
+        </div>
+      </section>
+
       <section>
         <h2 className="mb-2 text-2xl">Upload</h2>
         <div className="space-x-2">
@@ -201,10 +241,10 @@ export default function Home() {
                       height={100}
                     />
                   </td>
-                  <td>{truncate(record.target, 10)}</td>
-                  <td>{truncate(record.author, 10)}</td>
+                  <td>{truncateDid(record.target)}</td>
+                  <td>{truncateDid(record.author)}</td>
                   <td>
-                    {record.recipient ? truncate(record.recipient, 10) : 'no'}
+                    {record.recipient ? truncateDid(record.recipient) : 'no'}
                   </td>
                   <td>
                     <button
@@ -215,6 +255,15 @@ export default function Home() {
                       }
                     >
                       Share
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => remove(web5, record.id)}
+                      disabled={
+                        !!(record.recipient && record.recipient === myDid)
+                      }
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>
