@@ -4,9 +4,46 @@ import Image from 'next/image'
 import { Record, Web5 } from '@web5/api'
 import { truncate, truncateDid } from '@/utils'
 
+// https://developer.tbd.website/docs/web5/learn/protocols/
+// protocol validator UI https://radiant-semifreddo-af73bb.netlify.app/
+import protocolDefinition from '../protocol.json' with { type: "json" };
+
 interface RecordWithContent {
   record: Record
   content: Blob
+}
+
+const configureProtocol = async (web5: Web5, did: string) => {
+  const { protocols, status } = await web5.dwn.protocols.query({
+    message: {
+      filter: {
+        protocol: protocolDefinition.protocol,
+      }
+    }
+  });
+
+  if (status.code !== 200) {
+    console.error('Error querying protocols', status);
+    return;
+  }
+
+  if (protocols.length > 0) {
+    console.log('Protocol already deployed');
+    return;
+  }
+
+  // configure protocol on local DWN
+  const { status: configureStatus, protocol } = await web5.dwn.protocols.configure({
+    message: {
+      definition: protocolDefinition,
+    }
+  });
+
+  console.log('Protocol configured status', configureStatus);
+
+  if (!protocol) throw new Error('Protocol client has not been configured.')
+
+  await protocol.send(did);
 }
 
 export default function Home() {
@@ -28,18 +65,26 @@ export default function Home() {
         console.log('web5 client connecet connected')
         console.log('did', did)
       }
-      return web5
+      return { web5, did }
     }
-    initWeb5().then((web5) => loadAll(web5, ''))
+    initWeb5()
+      .then(async ({ web5, did }) => {
+        await configureProtocol(web5, did)
+        return { web5, did }
+      })
+      .then(({ web5, did }) => loadAll(web5, did, ''))
   }, [])
 
-  const upload = async (web5: Web5 | null, content: File) => {
+  const upload = async (web5: Web5 | null,  did: string, content: File) => {
     console.log('upload')
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const { record } = await web5.dwn.records.create({
       data: new Blob([content], { type: 'image/jpeg' }),
       message: {
-        dataFormat: 'image/jpeg',
+        protocol: protocolDefinition.protocol,
+        protocolPath: 'post',
+        schema: protocolDefinition.types.post.schema,
+        dataFormat: protocolDefinition.types.post.dataFormats[0],
         // recipient: theirDid,
       },
     })
@@ -50,29 +95,40 @@ export default function Home() {
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
     setUploadContent(null)
-    loadAll(web5, '')
+    loadAll(web5, did, '')
   }
 
-  const loadAll = async (web5: Web5 | null, theirDid: string) => {
+  const loadAll = async (web5: Web5 | null, did: string, theirDid: string) => {
     console.log('load records')
     if (!web5) throw new Error('Web5 client has not been initialized.')
-    const myRecords = await getMyRecords(web5)
-    const sharedRecords = await getSharedRecords(web5, theirDid)
-    const records = await Promise.all(
-      myRecords.concat(sharedRecords).map(async (record: Record) => {
+
+    const myLocalRecords = await getMyRecords(web5, "")
+    console.log("My local records", myLocalRecords)
+
+    const myRemoteRecords: ConcatArray<Record> = await getMyRecords(web5, did)
+    console.log("My remote records", myRemoteRecords)
+
+    const sharedRecords: ConcatArray<Record> = await getSharedRecords(web5, theirDid)
+    console.log("Shared records", sharedRecords)
+
+    const records = new Map()
+    await Promise.all(
+      myLocalRecords.concat(myRemoteRecords).concat(sharedRecords).map(async (record: Record) => {
         const content = await record.data.blob()
         logRecord(record, await content.text())
-        return { record, content }
+        records.set(record.id, { record, content });
       }),
     )
-    setRecords(records)
+    setRecords(Array.from(records.values()))
   }
 
-  const getMyRecords = async (web5: Web5) => {
+  const getMyRecords = async (web5: Web5, did: string | "") => {
     const queryResult = await web5.dwn.records.query({
+      from: did,
       message: {
         filter: {
-          dataFormat: 'image/jpeg',
+          protocol: protocolDefinition.protocol,
+          dataFormat: protocolDefinition.types.post.dataFormats[0]
         },
       },
     })
@@ -92,10 +148,13 @@ export default function Home() {
         from: did,
         message: {
           filter: {
-            dataFormat: 'image/jpeg',
+            protocol: protocolDefinition.protocol,
+            // schema: protocolDefinition.types.post.schema,
+            dataFormat: protocolDefinition.types.post.dataFormats[0]
           },
         },
       })
+      console.log("their records" + did, queryResult.records)
       records = records.concat(queryResult.records || [])
     }
     return records
@@ -108,22 +167,25 @@ export default function Home() {
     const recordResult = await web5.dwn.records.read({
       message: {
         filter: {
-          dataFormat: 'image/jpeg',
+          protocol: protocolDefinition.protocol,
+          dataFormat: protocolDefinition.types.post.dataFormats[0],
           recordId,
         },
       },
     })
     console.log('record read result', recordResult)
+    if (!recordResult.record) throw new Error('Record ID not found.')
 
     const recipientDid = prompt('Enter recipient DID')
-    if (!recipientDid) throw new Error('Record ID must not be empty.')
+    if (!recipientDid || recipientDid.length !== 1215) throw new Error('Record ID must not be empty.')
 
-    const recordsWiteResponse = await web5.dwn.records.createFrom({
+    const recordsWiteResponse = await web5.dwn.records.create({
       data: await recordResult.record.data.blob(),
-      author: myDid,
-      record: recordResult.record,
       message: {
-        dataFormat: 'image/jpeg',
+        protocol: protocolDefinition.protocol,
+        protocolPath: 'post',
+        schema: protocolDefinition.types.post.schema,
+        dataFormat: protocolDefinition.types.post.dataFormats[0],
         recipient: recipientDid,
       },
     })
@@ -133,7 +195,7 @@ export default function Home() {
       throw new Error('Record has not been created from other record')
     }
     console.log('record created', record.id)
-    const { status } = await record.send(myDid)
+    const { status } = await record.send(recipientDid)
     console.log('uploaded', status)
   }
 
@@ -180,7 +242,7 @@ export default function Home() {
             value={theirDid}
             onChange={(e) => {
               setTheirDid(e.target.value)
-              loadAll(web5, e.target.value)
+              loadAll(web5, myDid, e.target.value)
             }}
           />
           <button
@@ -188,7 +250,7 @@ export default function Home() {
             onClick={async () => {
               const text = await navigator.clipboard.readText()
               setTheirDid(text)
-              loadAll(web5, text)
+              loadAll(web5, myDid, text)
             }}
           >
             Paste
@@ -208,7 +270,7 @@ export default function Home() {
           <button
             className="btn btn-primary"
             disabled={!uploadContent}
-            onClick={() => upload(web5, uploadContent!)}
+            onClick={() => upload(web5, myDid, uploadContent!)}
           >
             Upload
           </button>
