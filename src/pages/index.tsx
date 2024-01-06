@@ -8,6 +8,8 @@ import { truncate, truncateDid } from '@/utils'
 // protocol validator UI https://radiant-semifreddo-af73bb.netlify.app/
 import protocolDefinition from '../protocol.json' with { type: 'json' }
 
+const CONTACT_DID_STORAGE_KEY = 'contact-did'
+
 interface RecordWithContent {
   record: Record
   content: Blob
@@ -68,14 +70,18 @@ export default function Home() {
         console.log('web5 client connecet connected')
         console.log('did', did)
       }
-      return { web5, did }
+
+      const theirDid = localStorage.getItem(CONTACT_DID_STORAGE_KEY) || ''
+      setTheirDid(theirDid)
+
+      return { web5, did, theirDid }
     }
     initWeb5()
-      .then(async ({ web5, did }) => {
+      .then(async ({ web5, did, theirDid }) => {
         await configureProtocol(web5, did)
-        return { web5, did }
+        return { web5, did, theirDid }
       })
-      .then(({ web5, did }) => loadAll(web5, did, ''))
+      .then(({ web5, did, theirDid }) => loadAll(web5, did, theirDid))
   }, [])
 
   const upload = async (web5: Web5 | null, did: string, content: File) => {
@@ -88,7 +94,6 @@ export default function Home() {
         protocolPath: 'post',
         schema: protocolDefinition.types.post.schema,
         dataFormat: protocolDefinition.types.post.dataFormats[0],
-        // recipient: theirDid,
       },
     })
 
@@ -163,12 +168,11 @@ export default function Home() {
         message: {
           filter: {
             protocol: protocolDefinition.protocol,
-            // schema: protocolDefinition.types.post.schema,
             dataFormat: protocolDefinition.types.post.dataFormats[0],
           },
         },
       })
-      console.log('their records' + did, queryResult.records)
+      console.log('their records', did, queryResult.records)
       records = records.concat(queryResult.records || [])
     }
     return records
@@ -247,6 +251,11 @@ export default function Home() {
     return removeResult.status.code === 202
   }
 
+  const saveContact = () => {
+    localStorage.setItem(CONTACT_DID_STORAGE_KEY, theirDid)
+    loadAll(web5, myDid, theirDid)
+  }
+
   return (
     <main className="container mx-auto space-y-10 py-10">
       <h1 className="mb-8 text-4xl">Decentgram</h1>
@@ -277,20 +286,14 @@ export default function Home() {
             className="input input-bordered w-full max-w-xs"
             type="text"
             value={theirDid}
-            onChange={(e) => {
-              setTheirDid(e.target.value)
-              loadAll(web5, myDid, e.target.value)
-            }}
+            onChange={(e) => setTheirDid(e.target.value)}
           />
           <button
             className="btn btn-primary"
-            onClick={async () => {
-              const text = await navigator.clipboard.readText()
-              setTheirDid(text)
-              loadAll(web5, myDid, text)
-            }}
+            disabled={!theirDid}
+            onClick={saveContact}
           >
-            Paste
+            Save
           </button>
         </div>
       </section>
