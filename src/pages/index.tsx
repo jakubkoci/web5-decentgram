@@ -207,10 +207,13 @@ export default function Home() {
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
 
+    const [isRemovedLocal, isRemovedRemote] = await removeGlobal(web5, did, recordResult.record.id)
+    console.log('Original record removed', { isRemovedLocal, isRemovedRemote })
+
     loadAll(web5, did, '')
   }
 
-  const removeGlobal = async (web5: Web5 | null, did: string, recordId: string) => [remove(web5, undefined, recordId), remove(web5, did, recordId)]
+  const removeGlobal = async (web5: Web5 | null, did: string, recordId: string) => Promise.all([remove(web5, undefined, recordId), remove(web5, did, recordId)])
 
   const remove = async (web5: Web5 | null, did: string | undefined, recordId: string) => {
     if (!web5) throw new Error('Web5 client has not been initialized.')
