@@ -98,7 +98,6 @@ export default function Home() {
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
     setUploadContent(null)
-    loadAll(web5, did, '')
   }
 
   const loadAll = async (web5: Web5 | null, did: string, theirDid: string) => {
@@ -209,8 +208,6 @@ export default function Home() {
 
     const [isRemovedLocal, isRemovedRemote] = await removeGlobal(web5, did, recordResult.record.id)
     console.log('Original record removed', { isRemovedLocal, isRemovedRemote })
-
-    loadAll(web5, did, '')
   }
 
   const removeGlobal = async (web5: Web5 | null, did: string, recordId: string) => Promise.all([remove(web5, undefined, recordId), remove(web5, did, recordId)])
@@ -288,7 +285,7 @@ export default function Home() {
           <button
             className="btn btn-primary"
             disabled={!uploadContent}
-            onClick={() => upload(web5, myDid, uploadContent!)}
+            onClick={() => upload(web5, myDid, uploadContent!).then(() => loadAll(web5, myDid, theirDid))}
           >
             Upload
           </button>
@@ -327,7 +324,7 @@ export default function Home() {
                   <td>
                     <button
                       className="btn btn-primary"
-                      onClick={() => share(web5, myDid, record.id)}
+                      onClick={() => share(web5, myDid, record.id).then(() => loadAll(web5, myDid, theirDid))}
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
@@ -336,7 +333,7 @@ export default function Home() {
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => removeGlobal(web5, myDid, record.id)}
+                      onClick={() => removeGlobal(web5, myDid, record.id).then(() => loadAll(web5, myDid, theirDid))}
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
