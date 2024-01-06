@@ -210,15 +210,19 @@ export default function Home() {
     loadAll(web5, did, '')
   }
 
-  const remove = async (web5: Web5 | null, recordId: string) => {
+  const removeGlobal = async (web5: Web5 | null, did: string, recordId: string) => [remove(web5, undefined, recordId), remove(web5, did, recordId)]
+
+  const remove = async (web5: Web5 | null, did: string | undefined, recordId: string) => {
     if (!web5) throw new Error('Web5 client has not been initialized.')
-    console.log('remove')
+    console.log('remove', { recordId })
     const removeResult = await web5.dwn.records.delete({
+      from: did,
       message: {
         recordId: recordId,
       },
     })
     console.log('removeResult', removeResult)
+    return removeResult.status.code === 202
   }
 
   return (
@@ -329,7 +333,7 @@ export default function Home() {
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => remove(web5, record.id)}
+                      onClick={() => removeGlobal(web5, myDid, record.id)}
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
