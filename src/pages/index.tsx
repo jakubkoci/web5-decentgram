@@ -169,7 +169,7 @@ export default function Home() {
     return records
   }
 
-  const share = async (web5: Web5 | null, recordId: string) => {
+  const share = async (web5: Web5 | null, did: string, recordId: string) => {
     console.log('share', { recordId })
     if (!web5) throw new Error('Web5 client has not been initialized.')
 
@@ -206,6 +206,8 @@ export default function Home() {
     console.log('record created', record.id)
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
+
+    loadAll(web5, did, '')
   }
 
   const remove = async (web5: Web5 | null, recordId: string) => {
@@ -318,7 +320,7 @@ export default function Home() {
                   <td>
                     <button
                       className="btn btn-primary"
-                      onClick={() => share(web5, record.id)}
+                      onClick={() => share(web5, myDid, record.id)}
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
