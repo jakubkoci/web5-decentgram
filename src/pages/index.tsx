@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Record, Web5 } from '@web5/api'
-import { truncate, truncateDid } from '@/utils'
+import { logRecord, truncate, truncateDid } from '@/utils'
 
 // https://developer.tbd.website/docs/web5/learn/protocols/
 // protocol validator UI https://radiant-semifreddo-af73bb.netlify.app/
@@ -257,7 +257,7 @@ export default function Home() {
   }
 
   return (
-    <main className="container mx-auto space-y-10 py-10">
+    <main className="container mx-auto space-y-10 px-20 py-10">
       <h1 className="mb-8 text-4xl">Decentgram</h1>
       <section>
         <h2 className="mb-2 text-2xl">My DID</h2>
@@ -323,34 +323,44 @@ export default function Home() {
 
       <section>
         <h2 className="text-2xl">Images</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Content</th>
-              <th>Author</th>
-              <th>Recipient</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map(({ record, content }) => {
-              return (
-                <tr key={record.id}>
-                  <td className="font-mono">{truncate(record.id, 12)}</td>
-                  <td>
+        <div className="space-y-10">
+          {records.map(({ record, content }) => {
+            return (
+              <div
+                key={record.id}
+                className="card bg-base-100 bg-white shadow-xl lg:card-side"
+              >
+                <figure>
+                  <div className="p-10">
                     <Image
+                      quality={100}
                       src={URL.createObjectURL(content)}
-                      alt="post"
-                      width={100}
-                      height={100}
+                      alt={record.id}
+                      width={300}
+                      height={300}
                     />
-                  </td>
-                  <td>{truncateDid(record.author)}</td>
-                  <td>
-                    {record.recipient ? truncateDid(record.recipient) : 'no'}
-                  </td>
-                  <td>
+                  </div>
+                </figure>
+                <div className="card-body">
+                  <table className="table">
+                    <tr>
+                      <th className="text-right">ID</th>
+                      <td>{truncate(record.id, 12)}</td>
+                    </tr>
+                    <tr>
+                      <th className="text-right">Author</th>
+                      <td>{truncateDid(record.author)}</td>
+                    </tr>
+                    <tr>
+                      <th className="text-right">Shared With</th>
+                      <td>
+                        {record.recipient
+                          ? truncateDid(record.recipient)
+                          : 'no'}
+                      </td>
+                    </tr>
+                  </table>
+                  <div className="card-actions justify-end">
                     <button
                       className="btn btn-primary"
                       onClick={() =>
@@ -377,24 +387,13 @@ export default function Home() {
                     >
                       Delete
                     </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </section>
     </main>
   )
-}
-
-const logRecord = (record: Record, content: string) => {
-  const { id, author, target, recipient } = record
-  console.log({
-    id,
-    author,
-    target,
-    recipient,
-    content,
-  })
 }
