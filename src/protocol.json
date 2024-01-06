@@ -1,0 +1,30 @@
+{
+  "protocol": "https://aries.chat/",
+  "published": true,
+  "types": {
+    "post": {
+      "schema": "https://aries.chat/schemas/postSchema",
+      "dataFormats": ["image/jpeg"]
+    }
+  },
+  "structure": {
+    "post": {
+      "$actions": [
+        {
+          "who": "author",
+          "of": "post",
+          "can": "read"
+        },
+        {
+          "who": "recipient",
+          "of": "post",
+          "can": "read"
+        },
+        {
+          "who": "anyone",
+          "can": "write"
+        }
+      ]
+    }
+  }
+}
