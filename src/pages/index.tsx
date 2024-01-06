@@ -105,16 +105,22 @@ export default function Home() {
     if (!web5) throw new Error('Web5 client has not been initialized.')
 
     const myLocalRecords = await getMyRecords(web5, '')
-    console.log('My local records', myLocalRecords.map(r => truncate(r.id, 12)))
+    console.log(
+      'My local records',
+      myLocalRecords.map((r) => truncate(r.id, 12)),
+    )
 
     const myRemoteRecords = await getMyRecords(web5, did)
-    console.log('My remote records', myRemoteRecords.map(r => truncate(r.id, 12)))
-
-    const sharedRecords = await getSharedRecords(
-      web5,
-      theirDid,
+    console.log(
+      'My remote records',
+      myRemoteRecords.map((r) => truncate(r.id, 12)),
     )
-    console.log('Shared records', sharedRecords.map(r => truncate(r.id, 12)))
+
+    const sharedRecords = await getSharedRecords(web5, theirDid)
+    console.log(
+      'Shared records',
+      sharedRecords.map((r) => truncate(r.id, 12)),
+    )
 
     const records = new Map()
     await Promise.all(
@@ -206,13 +212,29 @@ export default function Home() {
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
 
-    const [isRemovedLocal, isRemovedRemote] = await removeGlobal(web5, did, recordResult.record.id)
+    const [isRemovedLocal, isRemovedRemote] = await removeGlobal(
+      web5,
+      did,
+      recordResult.record.id,
+    )
     console.log('Original record removed', { isRemovedLocal, isRemovedRemote })
   }
 
-  const removeGlobal = async (web5: Web5 | null, did: string, recordId: string) => Promise.all([remove(web5, undefined, recordId), remove(web5, did, recordId)])
+  const removeGlobal = async (
+    web5: Web5 | null,
+    did: string,
+    recordId: string,
+  ) =>
+    Promise.all([
+      remove(web5, undefined, recordId),
+      remove(web5, did, recordId),
+    ])
 
-  const remove = async (web5: Web5 | null, did: string | undefined, recordId: string) => {
+  const remove = async (
+    web5: Web5 | null,
+    did: string | undefined,
+    recordId: string,
+  ) => {
     if (!web5) throw new Error('Web5 client has not been initialized.')
     console.log('remove', { recordId })
     const removeResult = await web5.dwn.records.delete({
@@ -285,7 +307,11 @@ export default function Home() {
           <button
             className="btn btn-primary"
             disabled={!uploadContent}
-            onClick={() => upload(web5, myDid, uploadContent!).then(() => loadAll(web5, myDid, theirDid))}
+            onClick={() =>
+              upload(web5, myDid, uploadContent!).then(() =>
+                loadAll(web5, myDid, theirDid),
+              )
+            }
           >
             Upload
           </button>
@@ -324,7 +350,11 @@ export default function Home() {
                   <td>
                     <button
                       className="btn btn-primary"
-                      onClick={() => share(web5, myDid, record.id).then(() => loadAll(web5, myDid, theirDid))}
+                      onClick={() =>
+                        share(web5, myDid, record.id).then(() =>
+                          loadAll(web5, myDid, theirDid),
+                        )
+                      }
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
@@ -333,7 +363,11 @@ export default function Home() {
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => removeGlobal(web5, myDid, record.id).then(() => loadAll(web5, myDid, theirDid))}
+                      onClick={() =>
+                        removeGlobal(web5, myDid, record.id).then(() =>
+                          loadAll(web5, myDid, theirDid),
+                        )
+                      }
                       disabled={
                         !!(record.recipient && record.recipient === myDid)
                       }
