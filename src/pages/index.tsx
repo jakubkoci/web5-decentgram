@@ -106,16 +106,16 @@ export default function Home() {
     if (!web5) throw new Error('Web5 client has not been initialized.')
 
     const myLocalRecords = await getMyRecords(web5, '')
-    console.log('My local records', myLocalRecords)
+    console.log('My local records', myLocalRecords.map(r => truncate(r.id, 12)))
 
-    const myRemoteRecords: ConcatArray<Record> = await getMyRecords(web5, did)
-    console.log('My remote records', myRemoteRecords)
+    const myRemoteRecords = await getMyRecords(web5, did)
+    console.log('My remote records', myRemoteRecords.map(r => truncate(r.id, 12)))
 
-    const sharedRecords: ConcatArray<Record> = await getSharedRecords(
+    const sharedRecords = await getSharedRecords(
       web5,
       theirDid,
     )
-    console.log('Shared records', sharedRecords)
+    console.log('Shared records', sharedRecords.map(r => truncate(r.id, 12)))
 
     const records = new Map()
     await Promise.all(
