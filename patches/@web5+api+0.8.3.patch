@@ -1,0 +1,439 @@
+diff --git a/node_modules/@web5/api/dist/cjs/dwn-api.js b/node_modules/@web5/api/dist/cjs/dwn-api.js
+index c622bb3..1384b38 100644
+--- a/node_modules/@web5/api/dist/cjs/dwn-api.js
++++ b/node_modules/@web5/api/dist/cjs/dwn-api.js
+@@ -171,8 +171,6 @@ var DwnApi = /** @class */ (function () {
+                     var _b;
+                     return __generator(this, function (_c) {
+                         _a = request.record.toJSON(), inheritedAuthor = _a.author, inheritedProperties = __rest(_a, ["author"]);
+-                        // Remove target from inherited properties since target is being explicitly defined in method parameters.
+-                        delete inheritedProperties.target;
+                         // If `data` is being updated then `dataCid` and `dataSize` must not be present.
+                         if (request.data !== undefined) {
+                             delete inheritedProperties.dataCid;
+@@ -276,18 +274,18 @@ var DwnApi = /** @class */ (function () {
+                                          */
+                                         author: dwn_sdk_js_1.RecordsWrite.getAuthor(entry), 
+                                         /**
+-                                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                                          * local DWN even if the record was returned by a query of a remote DWN.
+                                          */
+-                                        target: _this.connectedDid, 
++                                        connectedDid: _this.connectedDid, 
+                                         /**
+-                                         * If the record was returned by a query of a remote DWN, set the `remoteTarget` to
+-                                         * the DID of the DWN that returned the record. The `remoteTarget` will be used to
+-                                         * determine which DWN to send subsequent read requests to in the event the data payload
+-                                         * exceeds the threshold for being returned with queries.
++                                         * If the record was returned by a query of a remote DWN, set the `remoteOrigin` to
++                                         * the DID of the DWN that returned the record. The `remoteOrigin` property will be used
++                                         * to determine which DWN to send subsequent read requests to in the event the data
++                                         * payload exceeds the threshold for being returned with queries.
+                                          */
+-                                        remoteTarget: request.from }, entry);
++                                        remoteOrigin: request.from }, entry);
+                                     var record = new record_js_1.Record(_this.agent, recordOptions);
+                                     return record;
+                                 });
+@@ -337,18 +335,18 @@ var DwnApi = /** @class */ (function () {
+                                          */
+                                         author: dwn_sdk_js_1.RecordsWrite.getAuthor(responseRecord), 
+                                         /**
+-                                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                                          * local DWN even if the record was read from a remote DWN.
+                                          */
+-                                        target: this.connectedDid, 
++                                        connectedDid: this.connectedDid, 
+                                         /**
+-                                         * If the record was returned by a query of a remote DWN, set the `remoteTarget` to
+-                                         * the DID of the DWN that returned the record. The `remoteTarget` will be used to
+-                                         * determine which DWN to send subsequent read requests to in the event the data payload
+-                                         * exceeds the threshold for being returned with queries.
++                                         * If the record was returned by reading from a remote DWN, set the `remoteOrigin` to
++                                         * the DID of the DWN that returned the record. The `remoteOrigin` property will be used
++                                         * to determine which DWN to send subsequent read requests to in the event the data
++                                         * payload must be read again (e.g., if the data stream is consumed).
+                                          */
+-                                        remoteTarget: request.from }, responseRecord);
++                                        remoteOrigin: request.from }, responseRecord);
+                                     record = new record_js_1.Record(this.agent, recordOptions);
+                                 }
+                                 return [2 /*return*/, { record: record, status: status }];
+@@ -390,13 +388,13 @@ var DwnApi = /** @class */ (function () {
+                                          * Assume the author is the connected DID since the record was just written to the
+                                          * local DWN.
+                                          */
+-                                        author: this.connectedDid, encodedData: dataBlob, 
++                                        author: this.connectedDid, 
+                                         /**
+-                                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                                          * local DWN.
+                                          */
+-                                        target: this.connectedDid }, responseMessage);
++                                        connectedDid: this.connectedDid, encodedData: dataBlob }, responseMessage);
+                                     record = new record_js_1.Record(this.agent, recordOptions);
+                                 }
+                                 return [2 /*return*/, { record: record, status: status }];
+diff --git a/node_modules/@web5/api/dist/cjs/record.js b/node_modules/@web5/api/dist/cjs/record.js
+index f9de840..436d125 100644
+--- a/node_modules/@web5/api/dist/cjs/record.js
++++ b/node_modules/@web5/api/dist/cjs/record.js
+@@ -114,14 +114,17 @@ var utils_js_1 = require("./utils.js");
+ var Record = /** @class */ (function () {
+     function Record(agent, options) {
+         this._agent = agent;
+-        /** Store the target and author DIDs that were used to create the message to use for subsequent
+-         * updates, reads, etc. */
+-        this.author = options.author;
+-        this.target = options.target;
+-        /** If the record was queried from a remote DWN, the `remoteTarget` DID will be defined. This
+-         * value is used to send subsequent read requests to the same remote DWN in the event the
+-         * record's data payload was too large to be returned in query results. */
+-        this._remoteTarget = options.remoteTarget;
++        /** Store the author DID that originally signed the message as a convenience for developers, so
++         * that they don't have to decode the signer's DID from the JWS. */
++        this._author = options.author;
++        /** Store the currently `connectedDid` so that subsequent message signing is done with the
++         * connected DID's keys and DWN requests target the connected DID's DWN. */
++        this._connectedDid = options.connectedDid;
++        /** If the record was queried or read from a remote DWN, the `remoteOrigin` DID will be
++         * defined. This value is used to send subsequent read requests to the same remote DWN in the
++         * event the record's data payload was too large to be returned in query results. or must be
++         * read again (e.g., if the data stream is consumed). */
++        this._remoteOrigin = options.remoteOrigin;
+         // RecordsWriteMessage properties.
+         this._attestation = options.attestation;
+         this._contextId = options.contextId;
+@@ -146,12 +149,18 @@ var Record = /** @class */ (function () {
+         }
+     }
+     Object.defineProperty(Record.prototype, "attestation", {
+-        // Immutable DWN Record properties.
++        // Getters for immutable DWN Record properties.
+         /** Record's signatures attestation */
+         get: function () { return this._attestation; },
+         enumerable: false,
+         configurable: true
+     });
++    Object.defineProperty(Record.prototype, "author", {
++        /** DID that signed the record. */
++        get: function () { return this._author; },
++        enumerable: false,
++        configurable: true
++    });
+     Object.defineProperty(Record.prototype, "contextId", {
+         /** Record's context ID */
+         get: function () { return this._contextId; },
+@@ -225,7 +234,7 @@ var Record = /** @class */ (function () {
+         configurable: true
+     });
+     Object.defineProperty(Record.prototype, "dataCid", {
+-        // Mutable DWN Record properties.
++        // Getters for mutable DWN Record properties.
+         /** Record's CID */
+         get: function () { return this._descriptor.dataCid; },
+         enumerable: false,
+@@ -394,28 +403,26 @@ var Record = /** @class */ (function () {
+                                     return [3 /*break*/, 6];
+                                 case 1:
+                                     if (!!common_1.NodeStream.isReadable({ readable: self._readableStream })) return [3 /*break*/, 6];
+-                                    /** If `encodedData` is not set, then the Record was instantiated by `dwn.records.read()`
+-                                     * or was too large to be returned in `dwn.records.query()` results. In either case, the
+-                                     * data is not available in-memory and must be fetched from either: */
++                                    /** If the data stream for this `Record` instance has already been partially or fully
++                                     * consumed, then the data must be fetched again from either: */
+                                     _a = self;
+-                                    if (!self._remoteTarget) return [3 /*break*/, 3];
+-                                    // 1. ...a remote DWN if the record was queried from a remote DWN.
+-                                    return [4 /*yield*/, self.readRecordData({ target: self._remoteTarget, isRemote: true })];
++                                    if (!self._remoteOrigin) return [3 /*break*/, 3];
++                                    // A. ...a remote DWN if the record was originally queried from a remote DWN.
++                                    return [4 /*yield*/, self.readRecordData({ target: self._remoteOrigin, isRemote: true })];
+                                 case 2:
+-                                    // 1. ...a remote DWN if the record was queried from a remote DWN.
++                                    // A. ...a remote DWN if the record was originally queried from a remote DWN.
+                                     _b = _c.sent();
+                                     return [3 /*break*/, 5];
+                                 case 3: 
+-                                // 2. ...a local DWN if the record was queried from the local DWN.
+-                                return [4 /*yield*/, self.readRecordData({ target: self.target, isRemote: false })];
++                                // B. ...a local DWN if the record was originally queried from the local DWN.
++                                return [4 /*yield*/, self.readRecordData({ target: self._connectedDid, isRemote: false })];
+                                 case 4:
+-                                    // 2. ...a local DWN if the record was queried from the local DWN.
++                                    // B. ...a local DWN if the record was originally queried from the local DWN.
+                                     _b = _c.sent();
+                                     _c.label = 5;
+                                 case 5:
+-                                    /** If `encodedData` is not set, then the Record was instantiated by `dwn.records.read()`
+-                                     * or was too large to be returned in `dwn.records.query()` results. In either case, the
+-                                     * data is not available in-memory and must be fetched from either: */
++                                    /** If the data stream for this `Record` instance has already been partially or fully
++                                     * consumed, then the data must be fetched again from either: */
+                                     _a._readableStream = _b;
+                                     _c.label = 6;
+                                 case 6:
+@@ -463,7 +470,7 @@ var Record = /** @class */ (function () {
+                         _b = (_a = this._agent).sendDwnRequest;
+                         _c = {
+                             messageType: dwn_sdk_js_1.DwnInterfaceName.Records + dwn_sdk_js_1.DwnMethodName.Write,
+-                            author: this.author
++                            author: this._connectedDid
+                         };
+                         return [4 /*yield*/, this.data.blob()];
+                     case 1: return [4 /*yield*/, _b.apply(_a, [(_c.dataStream = _d.sent(),
+@@ -501,8 +508,7 @@ var Record = /** @class */ (function () {
+             published: this.published,
+             recipient: this.recipient,
+             recordId: this.id,
+-            schema: this.schema,
+-            target: this.target,
++            schema: this.schema
+         };
+     };
+     /**
+@@ -568,11 +574,11 @@ var Record = /** @class */ (function () {
+                         updateMessage.contextId = this._contextId;
+                         messageOptions = __assign({}, updateMessage);
+                         return [4 /*yield*/, this._agent.processDwnRequest({
+-                                author: this.author,
++                                author: this._connectedDid,
+                                 dataStream: dataBlob,
+                                 messageOptions: messageOptions,
+                                 messageType: dwn_sdk_js_1.DwnInterfaceName.Records + dwn_sdk_js_1.DwnMethodName.Write,
+-                                target: this.target,
++                                target: this._connectedDid,
+                             })];
+                     case 1:
+                         agentResponse = _b.sent();
+@@ -594,7 +600,7 @@ var Record = /** @class */ (function () {
+         });
+     };
+     /**
+-     * Fetches the record's data from the source DWN.
++     * Fetches the record's data from the specified DWN.
+      *
+      * This private method is called when the record data is not available in-memory
+      * and needs to be fetched from either a local or a remote DWN.
+@@ -616,7 +622,7 @@ var Record = /** @class */ (function () {
+                 switch (_b.label) {
+                     case 0:
+                         readRequest = {
+-                            author: this.author,
++                            author: this._connectedDid,
+                             messageOptions: { filter: { recordId: this.id } },
+                             messageType: dwn_sdk_js_1.DwnInterfaceName.Records + dwn_sdk_js_1.DwnMethodName.Read,
+                             target: target,
+diff --git a/node_modules/@web5/api/dist/esm/dwn-api.js b/node_modules/@web5/api/dist/esm/dwn-api.js
+index 316b747..03a7875 100644
+--- a/node_modules/@web5/api/dist/esm/dwn-api.js
++++ b/node_modules/@web5/api/dist/esm/dwn-api.js
+@@ -102,8 +102,6 @@ export class DwnApi {
+             createFrom: (request) => __awaiter(this, void 0, void 0, function* () {
+                 var _a;
+                 const _b = request.record.toJSON(), { author: inheritedAuthor } = _b, inheritedProperties = __rest(_b, ["author"]);
+-                // Remove target from inherited properties since target is being explicitly defined in method parameters.
+-                delete inheritedProperties.target;
+                 // If `data` is being updated then `dataCid` and `dataSize` must not be present.
+                 if (request.data !== undefined) {
+                     delete inheritedProperties.dataCid;
+@@ -189,18 +187,18 @@ export class DwnApi {
+                          */
+                         author: RecordsWrite.getAuthor(entry), 
+                         /**
+-                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                          * local DWN even if the record was returned by a query of a remote DWN.
+                          */
+-                        target: this.connectedDid, 
++                        connectedDid: this.connectedDid, 
+                         /**
+-                         * If the record was returned by a query of a remote DWN, set the `remoteTarget` to
+-                         * the DID of the DWN that returned the record. The `remoteTarget` will be used to
+-                         * determine which DWN to send subsequent read requests to in the event the data payload
+-                         * exceeds the threshold for being returned with queries.
++                         * If the record was returned by a query of a remote DWN, set the `remoteOrigin` to
++                         * the DID of the DWN that returned the record. The `remoteOrigin` property will be used
++                         * to determine which DWN to send subsequent read requests to in the event the data
++                         * payload exceeds the threshold for being returned with queries.
+                          */
+-                        remoteTarget: request.from }, entry);
++                        remoteOrigin: request.from }, entry);
+                     const record = new Record(this.agent, recordOptions);
+                     return record;
+                 });
+@@ -242,18 +240,18 @@ export class DwnApi {
+                          */
+                         author: RecordsWrite.getAuthor(responseRecord), 
+                         /**
+-                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                          * local DWN even if the record was read from a remote DWN.
+                          */
+-                        target: this.connectedDid, 
++                        connectedDid: this.connectedDid, 
+                         /**
+-                         * If the record was returned by a query of a remote DWN, set the `remoteTarget` to
+-                         * the DID of the DWN that returned the record. The `remoteTarget` will be used to
+-                         * determine which DWN to send subsequent read requests to in the event the data payload
+-                         * exceeds the threshold for being returned with queries.
++                         * If the record was returned by reading from a remote DWN, set the `remoteOrigin` to
++                         * the DID of the DWN that returned the record. The `remoteOrigin` property will be used
++                         * to determine which DWN to send subsequent read requests to in the event the data
++                         * payload must be read again (e.g., if the data stream is consumed).
+                          */
+-                        remoteTarget: request.from }, responseRecord);
++                        remoteOrigin: request.from }, responseRecord);
+                     record = new Record(this.agent, recordOptions);
+                 }
+                 return { record, status };
+@@ -288,13 +286,13 @@ export class DwnApi {
+                          * Assume the author is the connected DID since the record was just written to the
+                          * local DWN.
+                          */
+-                        author: this.connectedDid, encodedData: dataBlob, 
++                        author: this.connectedDid, 
+                         /**
+-                         * Set the `target` DID to currently connected DID so that subsequent calls to
++                         * Set the `connectedDid` to currently connected DID so that subsequent calls to
+                          * {@link Record} instance methods, such as `record.update()` are executed on the
+                          * local DWN.
+                          */
+-                        target: this.connectedDid }, responseMessage);
++                        connectedDid: this.connectedDid, encodedData: dataBlob }, responseMessage);
+                     record = new Record(this.agent, recordOptions);
+                 }
+                 return { record, status };
+diff --git a/node_modules/@web5/api/dist/esm/record.js b/node_modules/@web5/api/dist/esm/record.js
+index fb3ff3d..5013e75 100644
+--- a/node_modules/@web5/api/dist/esm/record.js
++++ b/node_modules/@web5/api/dist/esm/record.js
+@@ -35,9 +35,11 @@ import { dataToBlob } from './utils.js';
+  * @beta
+  */
+ export class Record {
+-    // Immutable DWN Record properties.
++    // Getters for immutable DWN Record properties.
+     /** Record's signatures attestation */
+     get attestation() { return this._attestation; }
++    /** DID that signed the record. */
++    get author() { return this._author; }
+     /** Record's context ID */
+     get contextId() { return this._contextId; }
+     /** Record's data format */
+@@ -62,7 +64,7 @@ export class Record {
+     get recipient() { return this._descriptor.recipient; }
+     /** Record's schema */
+     get schema() { return this._descriptor.schema; }
+-    // Mutable DWN Record properties.
++    // Getters for mutable DWN Record properties.
+     /** Record's CID */
+     get dataCid() { return this._descriptor.dataCid; }
+     /** Record's data size */
+@@ -77,14 +79,17 @@ export class Record {
+     get published() { return this._descriptor.published; }
+     constructor(agent, options) {
+         this._agent = agent;
+-        /** Store the target and author DIDs that were used to create the message to use for subsequent
+-         * updates, reads, etc. */
+-        this.author = options.author;
+-        this.target = options.target;
+-        /** If the record was queried from a remote DWN, the `remoteTarget` DID will be defined. This
+-         * value is used to send subsequent read requests to the same remote DWN in the event the
+-         * record's data payload was too large to be returned in query results. */
+-        this._remoteTarget = options.remoteTarget;
++        /** Store the author DID that originally signed the message as a convenience for developers, so
++         * that they don't have to decode the signer's DID from the JWS. */
++        this._author = options.author;
++        /** Store the currently `connectedDid` so that subsequent message signing is done with the
++         * connected DID's keys and DWN requests target the connected DID's DWN. */
++        this._connectedDid = options.connectedDid;
++        /** If the record was queried or read from a remote DWN, the `remoteOrigin` DID will be
++         * defined. This value is used to send subsequent read requests to the same remote DWN in the
++         * event the record's data payload was too large to be returned in query results. or must be
++         * read again (e.g., if the data stream is consumed). */
++        this._remoteOrigin = options.remoteOrigin;
+         // RecordsWriteMessage properties.
+         this._attestation = options.attestation;
+         this._contextId = options.contextId;
+@@ -190,14 +195,13 @@ export class Record {
+                         self._readableStream = NodeStream.fromWebReadable({ readableStream: self._encodedData.stream() });
+                     }
+                     else if (!NodeStream.isReadable({ readable: self._readableStream })) {
+-                        /** If `encodedData` is not set, then the Record was instantiated by `dwn.records.read()`
+-                         * or was too large to be returned in `dwn.records.query()` results. In either case, the
+-                         * data is not available in-memory and must be fetched from either: */
+-                        self._readableStream = self._remoteTarget ?
+-                            // 1. ...a remote DWN if the record was queried from a remote DWN.
+-                            yield self.readRecordData({ target: self._remoteTarget, isRemote: true }) :
+-                            // 2. ...a local DWN if the record was queried from the local DWN.
+-                            yield self.readRecordData({ target: self.target, isRemote: false });
++                        /** If the data stream for this `Record` instance has already been partially or fully
++                         * consumed, then the data must be fetched again from either: */
++                        self._readableStream = self._remoteOrigin ?
++                            // A. ...a remote DWN if the record was originally queried from a remote DWN.
++                            yield self.readRecordData({ target: self._remoteOrigin, isRemote: true }) :
++                            // B. ...a local DWN if the record was originally queried from the local DWN.
++                            yield self.readRecordData({ target: self._connectedDid, isRemote: false });
+                     }
+                     if (!self._readableStream) {
+                         throw new Error('Record data is not available.');
+@@ -227,7 +231,7 @@ export class Record {
+         return __awaiter(this, void 0, void 0, function* () {
+             const { reply: { status } } = yield this._agent.sendDwnRequest({
+                 messageType: DwnInterfaceName.Records + DwnMethodName.Write,
+-                author: this.author,
++                author: this._connectedDid,
+                 dataStream: yield this.data.blob(),
+                 target: target,
+                 messageOptions: this.toJSON(),
+@@ -259,8 +263,7 @@ export class Record {
+             published: this.published,
+             recipient: this.recipient,
+             recordId: this.id,
+-            schema: this.schema,
+-            target: this.target,
++            schema: this.schema
+         };
+     }
+     /**
+@@ -324,11 +327,11 @@ export class Record {
+             updateMessage.contextId = this._contextId;
+             const messageOptions = Object.assign({}, updateMessage);
+             const agentResponse = yield this._agent.processDwnRequest({
+-                author: this.author,
++                author: this._connectedDid,
+                 dataStream: dataBlob,
+                 messageOptions,
+                 messageType: DwnInterfaceName.Records + DwnMethodName.Write,
+-                target: this.target,
++                target: this._connectedDid,
+             });
+             const { message, reply: { status } } = agentResponse;
+             const responseMessage = message;
+@@ -346,7 +349,7 @@ export class Record {
+         });
+     }
+     /**
+-     * Fetches the record's data from the source DWN.
++     * Fetches the record's data from the specified DWN.
+      *
+      * This private method is called when the record data is not available in-memory
+      * and needs to be fetched from either a local or a remote DWN.
+@@ -363,7 +366,7 @@ export class Record {
+     readRecordData({ target, isRemote }) {
+         return __awaiter(this, void 0, void 0, function* () {
+             const readRequest = {
+-                author: this.author,
++                author: this._connectedDid,
+                 messageOptions: { filter: { recordId: this.id } },
+                 messageType: DwnInterfaceName.Records + DwnMethodName.Read,
+                 target,
