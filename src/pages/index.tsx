@@ -100,7 +100,7 @@ export default function Home() {
     })
 
     if (!record) throw new Error('Record has not been created')
-    const readResult = await record.data.text()
+    // const readResult = await record.data.text()
     console.log('created')
     const { status } = await record.send(myDid)
     console.log('uploaded', status)
@@ -135,9 +135,11 @@ export default function Home() {
         .concat(myRemoteRecords)
         .concat(sharedRecords)
         .map(async (record: Record) => {
-          const content = await record.data.blob()
-          logRecord(record, await content.text())
-          records.set(record.id, { record, content })
+          try {
+            const content = await record.data.blob()
+            logRecord(record, await content.text())
+            records.set(record.id, { record, content })
+          } catch (e) { console.error("can't proccess " + truncate(record.id, 12), e) }
         }),
     )
     setRecords(Array.from(records.values()))
