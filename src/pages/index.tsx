@@ -61,7 +61,9 @@ export default function Home() {
     const initWeb5 = async () => {
       console.log('connect web5 client')
       const { web5, did } = await Web5.connect({
-        techPreview: { dwnEndpoints: ['http://localhost:4000'] },
+        techPreview: {
+          dwnEndpoints: ['https://dwn.tbddev.org/dwn0', 'https://dwn.tbddev.org/dwn3'],
+        },
       })
       setWeb5(web5)
       setMyDid(did)
