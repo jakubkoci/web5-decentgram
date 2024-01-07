@@ -215,7 +215,7 @@ export default function Home() {
       throw new Error('Record has not been created from other record')
     }
     console.log('record created', record.id)
-    const { status } = await record.send(myDid)
+    const { status } = await record.send(recipientDid)
     console.log('uploaded', status)
 
     const [isRemovedLocal, isRemovedRemote] = await removeGlobal(
