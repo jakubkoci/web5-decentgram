@@ -101,9 +101,9 @@ export default function Home() {
     })
 
     if (!record) throw new Error('Record has not been created')
-    const readResult = await record.data.text()
+    // const readResult = await record.data.text()
     console.log('created')
-    const { status } = await record.send(myDid)
+    const { status } = await record.send(did)
     console.log('uploaded', status)
     setUploadContent(null)
   }
@@ -133,9 +133,13 @@ export default function Home() {
     const records = new Map()
     await Promise.all(
       myLocalRecords.concat(myRemoteRecords).map(async (record: Record) => {
-        const content = await record.data.blob()
-        logRecord(record, await content.text())
-        records.set(record.id, { record, content })
+        try {
+          const content = await record.data.blob()
+          logRecord(record, await content.text())
+          records.set(record.id, { record, content })
+        } catch (e) {
+          console.error("can't proccess record " + truncate(record.id, 12), e)
+        }
       }),
     )
     setRecords(Array.from(records.values()))
@@ -143,9 +147,13 @@ export default function Home() {
     const sharedWithMeRecords = new Map()
     await Promise.all(
       sharedRecords.map(async (record: Record) => {
-        const content = await record.data.blob()
-        logRecord(record, await content.text())
-        sharedWithMeRecords.set(record.id, { record, content })
+        try {
+          const content = await record.data.blob()
+          logRecord(record, await content.text())
+          sharedWithMeRecords.set(record.id, { record, content })
+        } catch (e) {
+          console.error("can't proccess record " + truncate(record.id, 12), e)
+        }
       }),
     )
     setSharedWithMeRecords(Array.from(sharedWithMeRecords.values()))
@@ -208,6 +216,7 @@ export default function Home() {
 
     const recipientDid = prompt('Enter recipient DID')
     if (!recipientDid) throw new Error('Record ID must not be empty.')
+    if (recipientDid === did) throw new Error('recipientDid = myDid')
 
     const recordsWiteResponse = await web5.dwn.records.create({
       data: await recordResult.record.data.blob(),
@@ -225,7 +234,7 @@ export default function Home() {
       throw new Error('Record has not been created from other record')
     }
     console.log('record created', record.id)
-    const { status } = await record.send(myDid)
+    const { status } = await record.send(did)
     console.log('uploaded', status)
 
     const [isRemovedLocal, isRemovedRemote] = await removeGlobal(
