@@ -55,6 +55,9 @@ export default function Home() {
   const [myDid, setMyDid] = useState<string>('')
   const [theirDid, setTheirDid] = useState<string>('')
   const [records, setRecords] = useState<RecordWithContent[]>([])
+  const [sharedWithMeRecords, setSharedWithMeRecords] = useState<
+    RecordWithContent[]
+  >([])
   const [uploadContent, setUploadContent] = useState<File | null>(null)
 
   useEffect(() => {
@@ -129,16 +132,23 @@ export default function Home() {
 
     const records = new Map()
     await Promise.all(
-      myLocalRecords
-        .concat(myRemoteRecords)
-        .concat(sharedRecords)
-        .map(async (record: Record) => {
-          const content = await record.data.blob()
-          logRecord(record, await content.text())
-          records.set(record.id, { record, content })
-        }),
+      myLocalRecords.concat(myRemoteRecords).map(async (record: Record) => {
+        const content = await record.data.blob()
+        logRecord(record, await content.text())
+        records.set(record.id, { record, content })
+      }),
     )
     setRecords(Array.from(records.values()))
+
+    const sharedWithMeRecords = new Map()
+    await Promise.all(
+      sharedRecords.map(async (record: Record) => {
+        const content = await record.data.blob()
+        logRecord(record, await content.text())
+        sharedWithMeRecords.set(record.id, { record, content })
+      }),
+    )
+    setSharedWithMeRecords(Array.from(sharedWithMeRecords.values()))
   }
 
   const getMyRecords = async (web5: Web5, did: string | '') => {
@@ -160,8 +170,6 @@ export default function Home() {
   const getSharedRecords = async (web5: Web5, theirDid: string) => {
     let records: Record[] = []
     const contactDids: string[] = theirDid ? [theirDid] : []
-    // console.log('theirDid', truncateDid(theirDid))
-    // console.log('contactDids', contactDids)
     for (const did of contactDids) {
       const queryResult = await web5.dwn.records.query({
         from: did,
@@ -172,7 +180,11 @@ export default function Home() {
           },
         },
       })
-      console.log('their records', truncateDid(did), queryResult.records?.map((r) => truncate(r.id, 12)))
+      console.log(
+        'their records',
+        truncateDid(did),
+        queryResult.records?.map((r) => truncate(r.id, 12)),
+      )
       records = records.concat(queryResult.records || [])
     }
     return records
@@ -259,44 +271,6 @@ export default function Home() {
   return (
     <main className="container mx-auto space-y-10 px-20 py-10">
       <h1 className="mb-8 text-4xl">Decentgram</h1>
-      <section>
-        <h2 className="mb-2 text-2xl">My DID</h2>
-        <div className="space-x-2">
-          <input
-            className="input input-bordered w-full max-w-xs"
-            type="text"
-            value={myDid}
-            readOnly
-          />
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              navigator.clipboard.writeText(myDid)
-            }}
-          >
-            Copy
-          </button>
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-2xl">Their DID</h2>
-        <div className="space-x-2">
-          <input
-            className="input input-bordered w-full max-w-xs"
-            type="text"
-            value={theirDid}
-            onChange={(e) => setTheirDid(e.target.value)}
-          />
-          <button
-            className="btn btn-primary"
-            disabled={!theirDid}
-            onClick={saveContact}
-          >
-            Save
-          </button>
-        </div>
-      </section>
 
       <section>
         <h2 className="mb-2 text-2xl">Upload</h2>
@@ -321,81 +295,163 @@ export default function Home() {
         </div>
       </section>
 
-      <section>
-        <h2 className="text-2xl">Images</h2>
+      <section className="space-y-10">
+        <h2 className="text-2xl">My Images</h2>
+        <div className="space-x-2">
+          <label>
+            <div className="label">
+              <span className="label-text">My DID</span>
+            </div>
+            <input
+              className="input input-bordered w-full max-w-xs"
+              type="text"
+              value={myDid}
+              readOnly
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              navigator.clipboard.writeText(myDid)
+            }}
+          >
+            Copy
+          </button>
+        </div>
         <div className="space-y-10">
-          {records.map(({ record, content }) => {
-            return (
-              <div
-                key={record.id}
-                className="card bg-base-100 bg-white shadow-xl lg:card-side"
-              >
-                <figure>
-                  <div className="p-10">
-                    <Image
-                      quality={100}
-                      src={URL.createObjectURL(content)}
-                      alt={record.id}
-                      width={300}
-                      height={300}
-                    />
-                  </div>
-                </figure>
-                <div className="card-body">
-                  <table className="table">
-                    <tbody>
-                      <tr>
-                        <th className="text-right">ID</th>
-                        <td>{truncate(record.id, 12)}</td>
-                      </tr>
-                      <tr>
-                        <th className="text-right">Author</th>
-                        <td>{truncateDid(record.author)}</td>
-                      </tr>
-                      <tr>
-                        <th className="text-right">Shared With</th>
-                        <td>
-                          {record.recipient
-                            ? truncateDid(record.recipient)
-                            : 'no'}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <div className="card-actions justify-end">
-                    <button
-                      className="btn btn-primary"
-                      onClick={() =>
-                        share(web5, myDid, record.id).then(() =>
-                          loadAll(web5, myDid, theirDid),
-                        )
-                      }
-                      disabled={
-                        !!(record.recipient && record.recipient === myDid)
-                      }
-                    >
-                      Share
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() =>
-                        removeGlobal(web5, myDid, record.id).then(() =>
-                          loadAll(web5, myDid, theirDid),
-                        )
-                      }
-                      disabled={
-                        !!(record.recipient && record.recipient === myDid)
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {records.map(({ record, content }) => (
+            <ImageDetail
+              key={record.id}
+              record={record}
+              content={content}
+              myDid={myDid}
+              onShare={(recordId) =>
+                share(web5, myDid, recordId).then(() =>
+                  loadAll(web5, myDid, theirDid),
+                )
+              }
+              onDelete={(recordId) =>
+                removeGlobal(web5, myDid, recordId).then(() =>
+                  loadAll(web5, myDid, theirDid),
+                )
+              }
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-10">
+        <h2 className="text-2xl">Images Shared With Me</h2>
+        <div className="space-x-2">
+          <label>
+            <div className="label">
+              <span className="label-text">Their DID</span>
+            </div>
+            <input
+              className="input input-bordered w-full max-w-xs"
+              type="text"
+              value={theirDid}
+              onChange={(e) => setTheirDid(e.target.value)}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            disabled={!theirDid}
+            onClick={saveContact}
+          >
+            Save
+          </button>
+        </div>
+        <div className="space-y-10">
+          {sharedWithMeRecords.map(({ record, content }) => (
+            <ImageDetail
+              key={record.id}
+              record={record}
+              content={content}
+              myDid={myDid}
+              onShare={(recordId) =>
+                share(web5, myDid, recordId).then(() =>
+                  loadAll(web5, myDid, theirDid),
+                )
+              }
+              onDelete={(recordId) =>
+                removeGlobal(web5, myDid, recordId).then(() =>
+                  loadAll(web5, myDid, theirDid),
+                )
+              }
+            />
+          ))}
         </div>
       </section>
     </main>
+  )
+}
+
+interface ImageDetailProps {
+  record: Record
+  content: Blob
+  myDid: string
+  onShare: (recordId: string) => void
+  onDelete: (recordId: string) => void
+}
+
+const ImageDetail = ({
+  record,
+  content,
+  myDid,
+  onShare,
+  onDelete,
+}: ImageDetailProps) => {
+  return (
+    <div
+      key={record.id}
+      className="card bg-base-100 bg-white shadow-xl lg:card-side"
+    >
+      <figure>
+        <div className="p-10">
+          <Image
+            quality={100}
+            src={URL.createObjectURL(content)}
+            alt={record.id}
+            width={300}
+            height={300}
+          />
+        </div>
+      </figure>
+      <div className="card-body">
+        <table className="table">
+          <tbody>
+            <tr>
+              <th className="text-right">ID</th>
+              <td>{truncate(record.id, 12)}</td>
+            </tr>
+            <tr>
+              <th className="text-right">Author</th>
+              <td>{truncateDid(record.author)}</td>
+            </tr>
+            <tr>
+              <th className="text-right">Shared With</th>
+              <td>{record.recipient ? truncateDid(record.recipient) : 'no'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="card-actions justify-end">
+          <button
+            className="btn btn-primary"
+            onClick={() => onShare(record.id)}
+            disabled={!!(record.recipient && record.recipient === myDid)}
+          >
+            Share
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => onDelete(record.id)}
+            disabled={!!(record.recipient && record.recipient === myDid)}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

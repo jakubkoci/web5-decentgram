@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "format:check": "prettier --check .",
+    "format:update": "prettier --write ."
   },
   "dependencies": {
     "@web5/api": "^0.8.3",
