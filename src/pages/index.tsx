@@ -160,8 +160,8 @@ export default function Home() {
   const getSharedRecords = async (web5: Web5, theirDid: string) => {
     let records: Record[] = []
     const contactDids: string[] = theirDid ? [theirDid] : []
-    console.log('theirDid', theirDid)
-    console.log('contactDids', contactDids)
+    // console.log('theirDid', truncateDid(theirDid))
+    // console.log('contactDids', contactDids)
     for (const did of contactDids) {
       const queryResult = await web5.dwn.records.query({
         from: did,
@@ -172,7 +172,7 @@ export default function Home() {
           },
         },
       })
-      console.log('their records', did, queryResult.records)
+      console.log('their records', truncateDid(did), queryResult.records?.map((r) => truncate(r.id, 12)))
       records = records.concat(queryResult.records || [])
     }
     return records
@@ -343,22 +343,24 @@ export default function Home() {
                 </figure>
                 <div className="card-body">
                   <table className="table">
-                    <tr>
-                      <th className="text-right">ID</th>
-                      <td>{truncate(record.id, 12)}</td>
-                    </tr>
-                    <tr>
-                      <th className="text-right">Author</th>
-                      <td>{truncateDid(record.author)}</td>
-                    </tr>
-                    <tr>
-                      <th className="text-right">Shared With</th>
-                      <td>
-                        {record.recipient
-                          ? truncateDid(record.recipient)
-                          : 'no'}
-                      </td>
-                    </tr>
+                    <tbody>
+                      <tr>
+                        <th className="text-right">ID</th>
+                        <td>{truncate(record.id, 12)}</td>
+                      </tr>
+                      <tr>
+                        <th className="text-right">Author</th>
+                        <td>{truncateDid(record.author)}</td>
+                      </tr>
+                      <tr>
+                        <th className="text-right">Shared With</th>
+                        <td>
+                          {record.recipient
+                            ? truncateDid(record.recipient)
+                            : 'no'}
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                   <div className="card-actions justify-end">
                     <button
