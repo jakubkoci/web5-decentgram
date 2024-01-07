@@ -64,7 +64,9 @@ export default function Home() {
     const initWeb5 = async () => {
       console.log('connect web5 client')
       const { web5, did } = await Web5.connect({
-        techPreview: { dwnEndpoints: ['http://localhost:4000'] },
+        techPreview: {
+          dwnEndpoints: ['https://dwn.tbddev.org/dwn0', 'https://dwn.tbddev.org/dwn3'],
+        },
       })
       setWeb5(web5)
       setMyDid(did)
@@ -234,7 +236,7 @@ export default function Home() {
       throw new Error('Record has not been created from other record')
     }
     console.log('record created', record.id)
-    const { status } = await record.send(did)
+    const { status } = await record.send(recipientDid)
     console.log('uploaded', status)
 
     const [isRemovedLocal, isRemovedRemote] = await removeGlobal(
