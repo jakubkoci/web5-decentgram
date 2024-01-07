@@ -269,41 +269,45 @@ export default function Home() {
   }
 
   return (
-    <main className="container mx-auto space-y-10 px-20 py-10">
-      <h1 className="mb-8 text-4xl">Decentgram</h1>
+    <main className="container mx-auto max-w-screen-xl space-y-10 px-10 py-10">
+      <h1 className="mb-8 text-4xl font-bold">Decentgram</h1>
 
-      <section>
-        <h2 className="mb-2 text-2xl">Upload</h2>
-        <div className="space-x-2">
-          <input
-            type="file"
-            placeholder="Select image..."
-            className="file-input input-bordered w-full max-w-xs"
-            onChange={(e) => setUploadContent(e.currentTarget.files![0])}
-          />
-          <button
-            className="btn btn-primary"
-            disabled={!uploadContent}
-            onClick={() =>
-              upload(web5, myDid, uploadContent!).then(() =>
-                loadAll(web5, myDid, theirDid),
-              )
-            }
-          >
-            Upload
-          </button>
+      <section className="space-y-10">
+        <h2 className="text-2xl font-bold">Upload Image</h2>
+        <div className="flex justify-center space-x-2">
+          <div className="space-x-2">
+            <label>
+              <input
+                type="file"
+                placeholder="Select image..."
+                className="file-input file-input-primary input-bordered w-full max-w-xs"
+                onChange={(e) => setUploadContent(e.currentTarget.files![0])}
+              />
+            </label>
+            <button
+              className="btn btn-primary"
+              disabled={!uploadContent}
+              onClick={() =>
+                upload(web5, myDid, uploadContent!).then(() =>
+                  loadAll(web5, myDid, theirDid),
+                )
+              }
+            >
+              Upload
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="space-y-10">
-        <h2 className="text-2xl">My Images</h2>
-        <div className="space-x-2">
-          <label>
+      <section>
+        <h2 className="text-2xl font-bold">My Images</h2>
+        <div className="flex items-end space-x-2">
+          <label className="w-full">
             <div className="label">
               <span className="label-text">My DID</span>
             </div>
             <input
-              className="input input-bordered w-full max-w-xs"
+              className="input input-bordered w-full"
               type="text"
               value={myDid}
               readOnly
@@ -318,7 +322,7 @@ export default function Home() {
             Copy
           </button>
         </div>
-        <div className="space-y-10">
+        <div className="mb-10 mt-10 space-y-10">
           {records.map(({ record, content }) => (
             <ImageDetail
               key={record.id}
@@ -340,15 +344,15 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="space-y-10">
-        <h2 className="text-2xl">Images Shared With Me</h2>
-        <div className="space-x-2">
-          <label>
+      <section>
+        <h2 className="text-2xl font-bold">Images Shared With Me</h2>
+        <div className="flex items-end space-x-2">
+          <label className="w-full">
             <div className="label">
               <span className="label-text">Their DID</span>
             </div>
             <input
-              className="input input-bordered w-full max-w-xs"
+              className="input input-bordered w-full"
               type="text"
               value={theirDid}
               onChange={(e) => setTheirDid(e.target.value)}
@@ -362,7 +366,7 @@ export default function Home() {
             Save
           </button>
         </div>
-        <div className="space-y-10">
+        <div className="mb-10 mt-10 space-y-10">
           {sharedWithMeRecords.map(({ record, content }) => (
             <ImageDetail
               key={record.id}
