@@ -282,13 +282,13 @@ export default function Home() {
       <h1 className="mb-8 text-4xl font-bold">Decentgram</h1>
 
       <section className="space-y-10">
-        <h2 className="text-2xl font-bold">Upload Image</h2>
+        <h2 className="text-2xl font-bold">Upload Photo</h2>
         <div className="flex justify-center space-x-2">
           <div className="space-x-2">
             <label>
               <input
                 type="file"
-                placeholder="Select image..."
+                placeholder="Select photo..."
                 className="file-input file-input-primary input-bordered w-full max-w-xs"
                 onChange={(e) => setUploadContent(e.currentTarget.files![0])}
               />
@@ -309,7 +309,7 @@ export default function Home() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold">My Images</h2>
+        <h2 className="text-2xl font-bold">My Photos</h2>
         <div className="flex items-end space-x-2">
           <label className="w-full">
             <div className="label">
@@ -354,7 +354,7 @@ export default function Home() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold">Images Shared With Me</h2>
+        <h2 className="text-2xl font-bold">Photos Shared With Me</h2>
         <div className="flex items-end space-x-2">
           <label className="w-full">
             <div className="label">
