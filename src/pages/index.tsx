@@ -331,7 +331,7 @@ export default function Home() {
             Copy
           </button>
         </div>
-        <div className="mb-10 mt-10 space-y-10">
+        <div className="mb-10 mt-10 grid grid-flow-row gap-5 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {records.map(({ record, content }) => (
             <ImageDetail
               key={record.id}
@@ -375,7 +375,7 @@ export default function Home() {
             Save
           </button>
         </div>
-        <div className="mb-10 mt-10 space-y-10">
+        <div className="mb-10 mt-10 grid grid-flow-row gap-5 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {sharedWithMeRecords.map(({ record, content }) => (
             <ImageDetail
               key={record.id}
@@ -416,38 +416,33 @@ const ImageDetail = ({
   onDelete,
 }: ImageDetailProps) => {
   return (
-    <div
-      key={record.id}
-      className="card bg-base-100 bg-white shadow-xl lg:card-side"
-    >
+    <div key={record.id} className="card bg-white shadow-xl">
       <figure>
         <div className="p-10">
           <Image
             quality={100}
             src={URL.createObjectURL(content)}
             alt={record.id}
+            title={record.id}
             width={300}
             height={300}
           />
         </div>
       </figure>
       <div className="card-body">
-        <table className="table">
-          <tbody>
-            <tr>
-              <th className="text-right">ID</th>
-              <td>{truncate(record.id, 12)}</td>
-            </tr>
-            <tr>
-              <th className="text-right">Author</th>
-              <td>{truncateDid(record.author)}</td>
-            </tr>
-            <tr>
-              <th className="text-right">Shared With</th>
-              <td>{record.recipient ? truncateDid(record.recipient) : 'no'}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="flex-1 space-y-4">
+          <div>
+            <p className="text-sm">Author: </p>
+            <p className="font-mono text-sm">{truncateDid(record.author)}</p>
+          </div>
+          <div>
+            <p className="text-sm">Shared With: </p>
+            <p className="font-mono text-sm">
+              {record.recipient ? truncateDid(record.recipient) : 'no one'}
+            </p>
+          </div>
+        </div>
+
         <div className="card-actions justify-end">
           <button
             className="btn btn-primary"

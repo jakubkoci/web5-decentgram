@@ -18,7 +18,7 @@ export const truncate = (str: string, n: number) => {
 
 export const truncateDid = (did: string) => {
   const [, didMethod, didSuffix] = did.split(':')
-  return didSuffix
+  return `did:${didMethod}:${truncate(didSuffix, 10)}`
 }
 
 export const logRecord = (record: Record, content: string) => {
