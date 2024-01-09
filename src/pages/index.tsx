@@ -59,6 +59,7 @@ export default function Home() {
     RecordWithContent[]
   >([])
   const [uploadContent, setUploadContent] = useState<File | null>(null)
+  const [uploading, setUploading] = useState<boolean>(false)
 
   useEffect(() => {
     const initWeb5 = async () => {
@@ -88,7 +89,8 @@ export default function Home() {
   }, [])
 
   const upload = async (web5: Web5 | null, did: string, content: File) => {
-    console.log('upload')
+    console.log('upload', { content })
+    setUploading(true)
     if (!web5) throw new Error('Web5 client has not been initialized.')
     const { record } = await web5.dwn.records.create({
       data: new Blob([content], { type: 'image/jpeg' }),
@@ -105,6 +107,7 @@ export default function Home() {
     console.log('created')
     const { status } = await record.send(did)
     console.log('uploaded', status)
+    setUploading(false)
     setUploadContent(null)
   }
 
@@ -284,7 +287,7 @@ export default function Home() {
       <section className="space-y-10">
         <h2 className="text-2xl font-bold">Upload Photo</h2>
         <div className="flex justify-center space-x-2">
-          <div className="space-x-2">
+          <div className="flex flex-wrap gap-2">
             <label>
               <input
                 type="file"
@@ -295,13 +298,14 @@ export default function Home() {
             </label>
             <button
               className="btn btn-primary"
-              disabled={!uploadContent}
+              disabled={!uploadContent || uploading}
               onClick={() =>
                 upload(web5, myDid, uploadContent!).then(() =>
                   loadAll(web5, myDid, theirDid),
                 )
               }
             >
+              {uploading && <span className="loading loading-spinner"></span>}
               Upload
             </button>
           </div>
@@ -418,14 +422,14 @@ const ImageDetail = ({
   return (
     <div key={record.id} className="card bg-white shadow-xl">
       <figure>
-        <div className="p-10">
+        <div className="p-8">
           <Image
             quality={100}
             src={URL.createObjectURL(content)}
             alt={record.id}
             title={record.id}
-            width={300}
-            height={300}
+            width={400}
+            height={400}
           />
         </div>
       </figure>
