@@ -281,7 +281,7 @@ export default function Home() {
   }
 
   return (
-    <main className="container mx-auto max-w-screen-xl space-y-10 px-10 py-10">
+    <div className="container mx-auto max-w-screen-xl space-y-10 px-10 py-10">
       <h1 className="mb-8 text-4xl font-bold">Decentgram</h1>
 
       <section className="space-y-10">
@@ -400,7 +400,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 
