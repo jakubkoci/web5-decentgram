@@ -449,14 +449,14 @@ const ImageDetail = ({
 
         <div className="card-actions justify-end">
           <button
-            className="btn btn-primary"
+            className="btn"
             onClick={() => onShare(record.id)}
             disabled={!!(record.recipient && record.recipient === myDid)}
           >
             Share
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-outline btn-error"
             onClick={() => onDelete(record.id)}
             disabled={!!(record.recipient && record.recipient === myDid)}
           >
